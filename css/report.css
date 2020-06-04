@@ -1,0 +1,18 @@
+.report{
+    position: absolute;
+    width: 400px;
+    height: 100%;
+    z-index: 1;
+    background: rgb(187, 185, 189);
+    right: 0;
+}
+.header{
+    display: flex;
+    margin-left: 15px;
+}
+.icon{
+    width: 50px;
+    height: 50px;
+    margin-top: 10px;
+    margin-right: 10px;
+}
