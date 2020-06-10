@@ -1,8 +1,8 @@
 .report{
     position: absolute;
-    width: 400px;
+    width: 500px;
     height: 100%;
-    z-index: 1;
+    z-index: 5;
     background: rgb(187, 185, 189);
     right: 0;
 }
@@ -18,4 +18,12 @@
 }
 .is-selected{
     overflow: scroll;
+}
+
+.not-visible{
+    display: none;
+}
+
+.visible{
+    display: block;
 }
