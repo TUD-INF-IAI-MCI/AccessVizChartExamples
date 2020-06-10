@@ -90,7 +90,7 @@ function startD31() {
 
 function startD32(){
     // set the dimensions and margins of the graph
-    var margin = {top: 30, right: 30, bottom: 30, left: 50},
+    var margin = {top: 10, right: 30, bottom: 30, left: 40},
         width = 460 - margin.left - margin.right,
         height = 400 - margin.top - margin.bottom;
 
@@ -104,70 +104,76 @@ function startD32(){
             "translate(" + margin.left + "," + margin.top + ")");
 
 // get the data
-    d3.csv("https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/data_doubleHist.csv", function(data) {
+    d3.csv("https://raw.githubusercontent.com/holtzy/data_to_viz/master/Example_dataset/1_OneNum.csv", function(data) {
 
-        // add the x Axis
+        // X axis: scale and draw:
         var x = d3.scaleLinear()
-            .domain([-10,15])
+            .domain([0, 1000])     // can use this instead of 1000 to have the max of data: d3.max(data, function(d) { return +d.price })
             .range([0, width]);
         svg.append("g")
             .attr("transform", "translate(0," + height + ")")
             .call(d3.axisBottom(x));
 
-        // add the y Axis
+        // Y axis: initialization
         var y = d3.scaleLinear()
-            .range([height, 0])
-            .domain([0, 0.12]);
-        svg.append("g")
-            .call(d3.axisLeft(y));
+            .range([height, 0]);
+        var yAxis = svg.append("g")
 
-        // Compute kernel density estimation
-        var kde = kernelDensityEstimator(kernelEpanechnikov(7), x.ticks(60))
-        var density1 =  kde( data
-            .filter( function(d){return d.type === "variable 1"} )
-            .map(function(d){  return d.value; }) )
-        var density2 =  kde( data
-            .filter( function(d){return d.type === "variable 2"} )
-            .map(function(d){  return d.value; }) )
+        // A function that builds the graph for a specific value of bin
+        function update(nBin) {
 
-        // Plot the area
-        svg.append("path")
-            .attr("class", "mypath")
-            .datum(density1)
-            .attr("fill", "#69b3a2")
-            .attr("opacity", ".6")
-            .attr("stroke", "#ffffff")
-            .attr("stroke-width", 1)
-            .attr("stroke-linejoin", "round")
-            .attr("d",  d3.line()
-                .curve(d3.curveBasis)
-                .x(function(d) { return x(d[0]); })
-                .y(function(d) { return y(d[1]); })
-            );
+            // set the parameters for the histogram
+            var histogram = d3.histogram()
+                .value(function(d) { return d.price; })   // I need to give the vector of value
+                .domain(x.domain())  // then the domain of the graphic
+                .thresholds(x.ticks(nBin)); // then the numbers of bins
 
-        // Plot the area
-        svg.append("path")
-            .attr("class", "mypath")
-            .datum(density2)
-            .attr("fill", "#404080")
-            .attr("opacity", ".6")
-            .attr("stroke", "#ffffff")
-            .attr("stroke-width", 1)
-            .attr("stroke-linejoin", "round")
-            .attr("d",  d3.line()
-                .curve(d3.curveBasis)
-                .x(function(d) { return x(d[0]); })
-                .y(function(d) { return y(d[1]); })
-            );
+            // And apply this function to data to get the bins
+            var bins = histogram(data);
+
+            // Y axis: update now that we know the domain
+            y.domain([0, d3.max(bins, function(d) { return d.length; })]);   // d3.hist has to be called before the Y axis obviously
+            yAxis
+                .transition()
+                .duration(1000)
+                .call(d3.axisLeft(y));
+
+            // Join the rect with the bins data
+            var u = svg.selectAll("rect")
+                .data(bins)
+
+            // Manage the existing bars and eventually the new ones:
+            u
+                .enter()
+                .append("rect") // Add a new rect for each new elements
+                .merge(u) // get the already existing elements as well
+                .transition() // and apply changes to all of them
+                .duration(1000)
+                .attr("x", 1)
+                .attr("transform", function(d) { return "translate(" + x(d.x0) + "," + y(d.length) + ")"; })
+                .attr("width", function(d) { return x(d.x1) - x(d.x0) -1 ; })
+                .attr("height", function(d) { return height - y(d.length); })
+                .style("fill", "#69b3a2")
+
+
+            // If less bar in the new histogram, I delete the ones not in use anymore
+            u
+                .exit()
+                .remove()
+
+        }
+
+
+        // Initialize with 20 bins
+        update(20)
+
+
+        // Listen to the button -> update if user change it
+        d3.select("#nBin").on("input", function() {
+            update(+this.value);
+        });
 
     });
-
-// Handmade legend
-    svg.append("circle").attr("cx",300).attr("cy",30).attr("r", 6).style("fill", "#69b3a2")
-    svg.append("circle").attr("cx",300).attr("cy",60).attr("r", 6).style("fill", "#404080")
-    svg.append("text").attr("x", 320).attr("y", 30).text("variable A").style("fill","#ffffff").style("font-size", "15px").attr("alignment-baseline","middle")
-    svg.append("text").attr("x", 320).attr("y", 60).text("variable B").style("fill","#ffffff").style("font-size", "15px").attr("alignment-baseline","middle")
-
 }
 
 function startD33() {
