@@ -1,7 +1,7 @@
 .report{
     position: absolute;
     width: 500px;
-    height: 100%;
+    height: auto;
     z-index: 5;
     background: rgb(187, 185, 189);
     right: 0;
