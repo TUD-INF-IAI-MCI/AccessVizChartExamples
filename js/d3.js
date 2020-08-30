@@ -251,120 +251,63 @@ function startD33() {
 function startD34() {
 
 // set the dimensions and margins of the graph
-    var margin = {top: 80, right: 30, bottom: 50, left:110},
-        width = 460 - margin.left - margin.right,
-        height = 400 - margin.top - margin.bottom;
+    var width = 450,
+    height = 450,
+    margin = 40;
 
-// append the svg object to the body of the page
+// The radius of the pieplot is half the width or half the height (smallest one). I subtract a bit of margin.
+    var radius = Math.min(width, height) / 2 - margin;
+
+// append the svg object to the div called 'my_dataviz'
     var svg = d3.select("#my_dataviz4")
         .append("svg")
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height + margin.top + margin.bottom)
+        .attr("width", width)
+        .attr("height", height)
         .append("g")
-        .attr("transform",
-            "translate(" + margin.left + "," + margin.top + ")");
+        .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
 
-//read data
-    d3.csv("https://raw.githubusercontent.com/zonination/perceptions/master/probly.csv", function(data) {
+// Create dummy data
+    var data = {a: 9, b: 20, c:30, d:8, e:12};
 
-        // Get the different categories and count them
-        var categories = ["Almost Certainly", "Very Good Chance", "We Believe", "Likely", "About Even", "Little Chance", "Chances Are Slight", "Almost No Chance" ]
-        var n = categories.length
+// set the color scale
+    var color = d3.scaleOrdinal()
+        .domain(data)
+        .range(d3.schemeSet2);
 
-        // Compute the mean of each group
-        allMeans = []
-        for (i in categories){
-            currentGroup = categories[i]
-            mean = d3.mean(data, function(d) { return +d[currentGroup] })
-            allMeans.push(mean)
-        }
+// Compute the position of each group on the pie:
+    var pie = d3.pie()
+        .value(function(d) {return d.value; });
+    var data_ready = pie(d3.entries(data));
+// Now I know that group A goes from 0 degrees to x degrees and so on.
 
-        // Create a color scale using these means.
-        var myColor = d3.scaleSequential()
-            .domain([0,100])
-            .interpolator(d3.interpolateViridis);
+// shape helper to build arcs:
+    var arcGenerator = d3.arc()
+        .innerRadius(0)
+        .outerRadius(radius);
 
-        // Add X axis
-        var x = d3.scaleLinear()
-            .domain([-10, 120])
-            .range([ 0, 50 ]);
-        var xAxis = svg.append("g")
-            .attr("class", "xAxis")
-            .attr("transform", "translate(0," + height + ")")
-            .call(d3.axisBottom(x).tickValues([0,25, 50, 75, 100]).tickSize(-height) )
+// Build the pie chart: Basically, each part of the pie is a path that we build using the arc function.
+    svg
+        .selectAll('mySlices')
+        .data(data_ready)
+        .enter()
+        .append('path')
+        .attr('d', arcGenerator)
+        .attr('fill', function(d){ return(color(d.data.key)) })
+        .attr("stroke", "black")
+        .style("stroke-width", "2px")
+        .style("opacity", 0.7);
 
-        // Add X axis label:
-        svg.append("text")
-            .attr("text-anchor", "end")
-            .attr("x", width)
-            .attr("y", height + 40)
-            .text("Probability (%)");
+// Now add the annotation. Use the centroid method to get the best coordinates
+    svg
+        .selectAll('mySlices')
+        .data(data_ready)
+        .enter()
+        .append('text')
+        .text(function(d){ return "grp " + d.data.key})
+        .attr("transform", function(d) { return "translate(" + arcGenerator.centroid(d) + ")";  })
+        .style("text-anchor", "middle")
+        .style("font-size", 17);
 
-        // Create a Y scale for densities
-        var y = d3.scaleLinear()
-            .domain([0, 0.25])
-            .range([ height, 0]);
-
-        // Create the Y axis for names
-        var yName = d3.scaleBand()
-            .domain(categories)
-            .range([0, height])
-            .paddingInner(1)
-        svg.append("g")
-            .call(d3.axisLeft(yName).tickSize(0))
-            .select(".domain").remove()
-
-        // Compute kernel density estimation for each column:
-        var kde = kernelDensityEstimator(kernelEpanechnikov(7), x.ticks(40)) // increase this 40 for more accurate density.
-        var allDensity = []
-        for (i = 0; i < n; i++) {
-            key = categories[i]
-            density = kde( data.map(function(d){  return d[key]; }) )
-            allDensity.push({key: key, density: density})
-        }
-
-        // Add areas
-        var myCurves = svg.selectAll("areas")
-            .data(allDensity)
-            .enter()
-            .append("path")
-            .attr("class", "myCurves")
-            .attr("transform", function(d){return("translate(0," + (yName(d.key)-height) +")" )})
-            .attr("fill", function(d){
-                grp = d.key ;
-                index = categories.indexOf(grp)
-                value = allMeans[index]
-                return myColor( value  )
-            })
-            .datum(function(d){return(d.density)})
-            .attr("opacity", 0.7)
-            .attr("stroke", "#000")
-            .attr("stroke-width", 0.1)
-            .attr("d",  d3.line()
-                .curve(d3.curveBasis)
-                .x(function(d) { return x(0); })
-                .y(function(d) { return y(d[1]); })
-            )
-
-        // Animate X axis apparition
-        x.range([ 0, width ]);
-        xAxis
-            .transition()
-            .duration(5000)
-            .call(d3.axisBottom(x).tickValues([0,25, 50, 75, 100]).tickSize(-height) )
-            .select(".domain").remove()
-
-        // Animate densities apparition
-        myCurves
-            .transition()
-            .duration(5000)
-            .attr("d",  d3.line()
-                .curve(d3.curveBasis)
-                .x(function(d) { return x(d[0]); })
-                .y(function(d) { return y(d[1]); })
-            )
-
-    })
 }
 
 // Function to compute density
